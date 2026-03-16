@@ -133,9 +133,7 @@ fn summarize_impl(id: i64) -> anyhow::Result<()> {
         eprintln!(
             "dejiny: failed to summarize command {id} after {MAX_RETRIES} attempts: {last_err}"
         );
-        anyhow::bail!(
-            "claude failed after {MAX_RETRIES} attempts: {last_err}"
-        );
+        anyhow::bail!("claude failed after {MAX_RETRIES} attempts: {last_err}");
     }
 
     conn.execute(

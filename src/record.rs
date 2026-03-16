@@ -350,8 +350,7 @@ fn run_recording_session(
 
     // Ignore SIGTSTP for dejiny itself — the Ctrl+Z byte travels
     // through the PTY to the child; we handle suspension via waitpid.
-    let sigtstp_ignore =
-        SigAction::new(SigHandler::SigIgn, SaFlags::empty(), SigSet::empty());
+    let sigtstp_ignore = SigAction::new(SigHandler::SigIgn, SaFlags::empty(), SigSet::empty());
     unsafe { sigaction(Signal::SIGTSTP, &sigtstp_ignore)? };
 
     // Enter raw mode with signal handler for SIGTERM/SIGHUP
@@ -398,8 +397,7 @@ fn run_recording_session(
     // Poll loop
     let stdin = std::io::stdin();
     // SAFETY: sigchld_pipe_rd is valid for the lifetime of this scope.
-    let sigchld_pipe_borrowed =
-        unsafe { BorrowedFd::borrow_raw(sigchld_pipe_rd.as_raw_fd()) };
+    let sigchld_pipe_borrowed = unsafe { BorrowedFd::borrow_raw(sigchld_pipe_rd.as_raw_fd()) };
     let mut drain_buf = [0u8; 64];
     // Tracks a pending suspend: after sending SIGTSTP to a raw-mode
     // child, we give it this long to stop before escalating to SIGSTOP.
@@ -448,8 +446,7 @@ fn run_recording_session(
             // Drain all bytes from the pipe.
             while nix::unistd::read(&sigchld_pipe_rd, &mut drain_buf).unwrap_or(0) > 0 {}
             // Check child state.
-            let wait_result =
-                waitpid(child, Some(WaitPidFlag::WUNTRACED | WaitPidFlag::WNOHANG));
+            let wait_result = waitpid(child, Some(WaitPidFlag::WUNTRACED | WaitPidFlag::WNOHANG));
             log::debug!("sigchld: waitpid = {wait_result:?}");
             match wait_result {
                 Ok(WaitStatus::Stopped(_, sig)) => {
@@ -491,12 +488,7 @@ fn run_recording_session(
                         if !recording_failed {
                             recording.append(&buf[..n]);
                             if recording.len() >= CHUNK_FLUSH_THRESHOLD
-                                && !flush_chunk(
-                                    &conn,
-                                    &mut recording,
-                                    command_id,
-                                    &mut chunk_seq,
-                                )
+                                && !flush_chunk(&conn, &mut recording, command_id, &mut chunk_seq)
                             {
                                 recording_failed = true;
                             }
@@ -506,8 +498,7 @@ fn run_recording_session(
                     Err(e) => return Err(e.into()),
                 }
             }
-            if revents.contains(PollFlags::POLLHUP) && !revents.contains(PollFlags::POLLIN)
-            {
+            if revents.contains(PollFlags::POLLHUP) && !revents.contains(PollFlags::POLLIN) {
                 break;
             }
         }
@@ -532,8 +523,7 @@ fn run_recording_session(
                         log::debug!("stdin: write to master = {write_result:?}");
                     }
                     if suspend_deadline.is_none() && has_ctrl_z {
-                        let kill_result =
-                            kill(Pid::from_raw(-child.as_raw()), Signal::SIGTSTP);
+                        let kill_result = kill(Pid::from_raw(-child.as_raw()), Signal::SIGTSTP);
                         log::debug!(
                             "stdin: kill(pgid={}, SIGTSTP) = {kill_result:?}",
                             -child.as_raw()

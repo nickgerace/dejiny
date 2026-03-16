@@ -188,7 +188,10 @@ impl Drop for TuiGuard {
     }
 }
 
-fn run_tui(entries: &[HistoryEntry], initial_query: Option<String>) -> anyhow::Result<Option<SearchAction>> {
+fn run_tui(
+    entries: &[HistoryEntry],
+    initial_query: Option<String>,
+) -> anyhow::Result<Option<SearchAction>> {
     let _guard = TuiGuard::new()?;
 
     let backend = CrosstermBackend::new(std::io::stderr());
@@ -445,14 +448,14 @@ fn draw(f: &mut ratatui::Frame, state: &mut SearchState) {
             Style::default()
         };
         let summary_widget = Paragraph::new(Span::raw(&summary_text))
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(" summary ")
-                .border_style(border_style),
-        )
-        .wrap(Wrap { trim: false })
-        .scroll((state.summary_scroll, 0));
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title(" summary ")
+                    .border_style(border_style),
+            )
+            .wrap(Wrap { trim: false })
+            .scroll((state.summary_scroll, 0));
         f.render_widget(summary_widget, chunks[2]);
     }
 }

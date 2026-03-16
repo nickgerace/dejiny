@@ -491,5 +491,4 @@ mod tests {
         state.seek_forward(&mut out);
         assert_eq!(out, b"hello world!");
     }
-
 }
