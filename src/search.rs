@@ -256,10 +256,10 @@ fn run_tui(entries: &[HistoryEntry]) -> anyhow::Result<Option<SearchAction>> {
                     }
                 }
                 _ if state.focus == FocusedPanel::Summary => match (code, modifiers) {
-                    (KeyCode::Up, _) => {
+                    (KeyCode::Up, _) | (KeyCode::Char('p'), KeyModifiers::CONTROL) => {
                         state.summary_scroll = state.summary_scroll.saturating_sub(1);
                     }
-                    (KeyCode::Down, _) => {
+                    (KeyCode::Down, _) | (KeyCode::Char('n'), KeyModifiers::CONTROL) => {
                         state.summary_scroll = state.summary_scroll.saturating_add(1);
                     }
                     (KeyCode::Char(c), KeyModifiers::NONE | KeyModifiers::SHIFT) => {
@@ -389,8 +389,10 @@ fn draw(f: &mut ratatui::Frame, state: &mut SearchState) {
                 Span::raw(" ")
             };
 
-            // Layout: status(4) + gap(1) + rec(1) + gap(1) + command + gap(2) + cwd + gap(2) + time
-            let fixed = 4 + 1 + 1 + 1 + 2 + cwd.width() + 2 + time.width();
+            let id_str = format!("{:>6}", entry.id);
+
+            // Layout: id(6) + gap(1) + status(4) + gap(1) + rec(1) + gap(1) + command + gap(2) + cwd + gap(2) + time
+            let fixed = 6 + 1 + 4 + 1 + 1 + 1 + 2 + cwd.width() + 2 + time.width();
             let cmd_width = inner_width.saturating_sub(fixed);
             let cmd_display = {
                 let cmd_w = entry.command.width();
@@ -403,6 +405,8 @@ fn draw(f: &mut ratatui::Frame, state: &mut SearchState) {
             };
 
             ListItem::new(Line::from(vec![
+                Span::styled(id_str, Style::default().fg(Color::DarkGray)),
+                Span::raw(" "),
                 status,
                 Span::raw(" "),
                 rec_indicator,
