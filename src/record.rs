@@ -499,12 +499,10 @@ fn run_recording_session(
                 Ok(WaitStatus::Exited(_, code)) => {
                     log::debug!("sigchld: child exited with code {code}");
                     child_exit = Some(code);
-                    break;
                 }
                 Ok(WaitStatus::Signaled(_, sig, _)) => {
                     log::debug!("sigchld: child killed by signal {sig:?}");
                     child_exit = Some(128 + sig as i32);
-                    break;
                 }
                 _ => {} // StillAlive — spurious wakeup
             }
@@ -586,6 +584,39 @@ fn run_recording_session(
                     }
                 }
                 Err(_) => break,
+            }
+        }
+
+        if child_exit.is_some() {
+            break;
+        }
+    }
+
+    // Drain any remaining PTY data buffered in the kernel.
+    if child_exit.is_some() {
+        loop {
+            let mut drain_fds = [PollFd::new(master_fd.as_fd(), PollFlags::POLLIN)];
+            match poll(&mut drain_fds, PollTimeout::from(0u16)) {
+                Ok(0) => break,
+                Err(_) => break,
+                Ok(_) => {}
+            }
+            let has_data = drain_fds[0]
+                .revents()
+                .is_some_and(|r| r.contains(PollFlags::POLLIN));
+            if !has_data {
+                break;
+            }
+            match nix::unistd::read(&master_fd, &mut buf) {
+                Ok(0) | Err(_) => break,
+                Ok(n) => {
+                    use std::io::Write;
+                    let _ = std::io::stdout().write_all(&buf[..n]);
+                    let _ = std::io::stdout().flush();
+                    if !recording_failed {
+                        recording.append(&buf[..n]);
+                    }
+                }
             }
         }
     }

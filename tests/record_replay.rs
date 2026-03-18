@@ -598,6 +598,72 @@ fn resize_propagation() {
 
 /// Poll the master fd until `collected` contains `needle` or timeout expires.
 /// Returns true if found, false on timeout.
+// ---------------------------------------------------------------------------
+// Fast-exit output capture test
+// ---------------------------------------------------------------------------
+
+/// Exercises the race between SIGCHLD and PTY output for fast-exiting commands.
+/// Runs 20 iterations because the race is non-deterministic.
+#[test]
+fn fast_exit_captures_output() {
+    use nix::poll::PollTimeout;
+    use nix::pty::forkpty;
+
+    for iteration in 0..20 {
+        let tmp = TempDir::new().unwrap();
+
+        let initial_ws = libc::winsize {
+            ws_row: 24,
+            ws_col: 80,
+            ws_xpixel: 0,
+            ws_ypixel: 0,
+        };
+
+        let fork_result = unsafe { forkpty(Some(&initial_ws), None) }.expect("forkpty failed");
+
+        match fork_result {
+            nix::pty::ForkptyResult::Child => {
+                let xdg_data = tmp.path().to_str().unwrap();
+                unsafe {
+                    std::env::set_var("XDG_DATA_HOME", xdg_data);
+                    std::env::set_var("DEJINY_NO_SUMMARIZE", "1");
+                }
+
+                let dejiny = PathBuf::from(env!("CARGO_BIN_EXE_dejiny"));
+                let c_dejiny = std::ffi::CString::new(dejiny.to_str().unwrap()).unwrap();
+                let c_record = std::ffi::CString::new("record").unwrap();
+                let c_sep = std::ffi::CString::new("--").unwrap();
+                let c_echo = std::ffi::CString::new("/bin/echo").unwrap();
+                let c_hello = std::ffi::CString::new("hello").unwrap();
+                let _ = nix::unistd::execvp(
+                    &c_dejiny,
+                    &[&c_dejiny, &c_record, &c_sep, &c_echo, &c_hello],
+                );
+                std::process::exit(1);
+            }
+            nix::pty::ForkptyResult::Parent { child: _, master } => {
+                unsafe {
+                    libc::fcntl(master.as_raw_fd(), libc::F_SETFL, libc::O_NONBLOCK);
+                }
+
+                let mut collected = String::new();
+                let mut buf = [0u8; 4096];
+                let timeout = PollTimeout::from(5000u16);
+
+                let found = poll_until_match(&master, &mut collected, &mut buf, timeout, "hello");
+                assert!(
+                    found,
+                    "iteration {iteration}: timed out waiting for 'hello', got: {collected}"
+                );
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
 fn poll_until_match(
     master: &impl AsRawFd,
     collected: &mut String,
