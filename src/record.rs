@@ -354,8 +354,16 @@ fn run_recording_session(
     // Self-pipe for SIGWINCH so poll() wakes on terminal resize.
     let (sigwinch_pipe_rd, sigwinch_pipe_wr) = nix::unistd::pipe()?;
     unsafe {
-        libc::fcntl(sigwinch_pipe_rd.as_raw_fd(), libc::F_SETFL, libc::O_NONBLOCK);
-        libc::fcntl(sigwinch_pipe_wr.as_raw_fd(), libc::F_SETFL, libc::O_NONBLOCK);
+        libc::fcntl(
+            sigwinch_pipe_rd.as_raw_fd(),
+            libc::F_SETFL,
+            libc::O_NONBLOCK,
+        );
+        libc::fcntl(
+            sigwinch_pipe_wr.as_raw_fd(),
+            libc::F_SETFL,
+            libc::O_NONBLOCK,
+        );
     }
     SIGWINCH_PIPE_WR.store(sigwinch_pipe_wr.as_raw_fd(), Ordering::SeqCst);
 
@@ -510,7 +518,11 @@ fn run_recording_session(
             let mut ws: libc::winsize = unsafe { std::mem::zeroed() };
             if unsafe { libc::ioctl(libc::STDIN_FILENO, libc::TIOCGWINSZ, &mut ws) } == 0 {
                 unsafe { libc::ioctl(master_fd.as_raw_fd(), libc::TIOCSWINSZ, &ws) };
-                log::debug!("sigwinch: propagated {}x{} to child PTY", ws.ws_col, ws.ws_row);
+                log::debug!(
+                    "sigwinch: propagated {}x{} to child PTY",
+                    ws.ws_col,
+                    ws.ws_row
+                );
             }
         }
 

@@ -1,5 +1,6 @@
 pub use dejiny::{db, format};
 mod blacklist;
+mod import;
 mod init;
 mod record;
 mod replay;
@@ -60,6 +61,18 @@ enum Commands {
         #[arg(long)]
         text: bool,
     },
+    /// Import history from existing shell history files
+    Import {
+        /// Path to zsh history file (default: ~/.zsh_history)
+        #[arg(long)]
+        zsh: Option<std::path::PathBuf>,
+        /// Path to bash history file (default: ~/.bash_history)
+        #[arg(long)]
+        bash: Option<std::path::PathBuf>,
+        /// Show what would be imported without writing to the database
+        #[arg(long)]
+        dry_run: bool,
+    },
     #[command(hide = true)]
     Summarize { id: i64 },
     /// Manage summary blacklist patterns
@@ -112,6 +125,7 @@ fn main() {
         } => store::store(&command, exit_code, &start, &end, &cwd),
         Commands::Search { query } => search::search(query),
         Commands::Record { command } => record::record(&command),
+        Commands::Import { zsh, bash, dry_run } => import::import(zsh, bash, dry_run),
         Commands::Replay { id, speed, text } => replay::replay(id, speed, text),
         Commands::Summarize { id } => summarize::summarize(id),
         Commands::Blacklist { action } => match action {

@@ -512,11 +512,7 @@ fn resize_propagation() {
         "#!/bin/bash\ntrap 'echo RESIZED:$(stty size)' WINCH\necho READY:$(stty size)\nsleep 5\n",
     )
     .unwrap();
-    std::fs::set_permissions(
-        &script_path,
-        std::fs::Permissions::from_mode(0o755),
-    )
-    .unwrap();
+    std::fs::set_permissions(&script_path, std::fs::Permissions::from_mode(0o755)).unwrap();
 
     // Initial window size: 24 rows x 80 cols
     let initial_ws = libc::winsize {
@@ -541,16 +537,11 @@ fn resize_propagation() {
             }
 
             let dejiny = PathBuf::from(env!("CARGO_BIN_EXE_dejiny"));
-            let c_dejiny =
-                std::ffi::CString::new(dejiny.to_str().unwrap()).unwrap();
+            let c_dejiny = std::ffi::CString::new(dejiny.to_str().unwrap()).unwrap();
             let c_record = std::ffi::CString::new("record").unwrap();
             let c_sep = std::ffi::CString::new("--").unwrap();
-            let c_script =
-                std::ffi::CString::new(script_path.to_str().unwrap()).unwrap();
-            let _ = nix::unistd::execvp(
-                &c_dejiny,
-                &[&c_dejiny, &c_record, &c_sep, &c_script],
-            );
+            let c_script = std::ffi::CString::new(script_path.to_str().unwrap()).unwrap();
+            let _ = nix::unistd::execvp(&c_dejiny, &[&c_dejiny, &c_record, &c_sep, &c_script]);
             std::process::exit(1);
         }
         nix::pty::ForkptyResult::Parent { child, master } => {
@@ -564,7 +555,8 @@ fn resize_propagation() {
             let timeout = PollTimeout::from(5000u16); // 5 seconds
 
             // Phase 1: Read until we see READY:24 80
-            let ready_found = poll_until_match(&master, &mut collected, &mut buf, timeout, "READY:24 80");
+            let ready_found =
+                poll_until_match(&master, &mut collected, &mut buf, timeout, "READY:24 80");
             assert!(
                 ready_found,
                 "timed out waiting for READY:24 80, got: {collected}"
@@ -635,7 +627,9 @@ fn poll_until_match(
             Ok(_) => {
                 if let Some(revents) = fds[0].revents() {
                     if revents.contains(PollFlags::POLLIN) {
-                        let n = unsafe { libc::read(master.as_raw_fd(), buf.as_mut_ptr().cast(), buf.len()) };
+                        let n = unsafe {
+                            libc::read(master.as_raw_fd(), buf.as_mut_ptr().cast(), buf.len())
+                        };
                         if n > 0 {
                             collected.push_str(&String::from_utf8_lossy(&buf[..n as usize]));
                         }
